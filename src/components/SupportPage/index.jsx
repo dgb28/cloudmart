@@ -28,6 +28,7 @@ const CustomerSupportPage = () => {
   const [inputMessage, setInputMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
+  const [endedThreads, setEndedThreads] = useState([]);
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
 
@@ -49,8 +50,14 @@ const CustomerSupportPage = () => {
     const savedThreads =
       JSON.parse(localStorage.getItem("supportThreads")) || [];
     setThreads(savedThreads);
+    setEndedThreads(
+      savedThreads.filter((thread) => thread.ended).map((thread) => thread.id)
+    );
     if (savedThreads.length > 0 && !currentThreadId) {
-      setCurrentThreadId(savedThreads[0].id);
+      const firstActiveThread = savedThreads.find((thread) => !thread.ended);
+      setCurrentThreadId(
+        firstActiveThread ? firstActiveThread.id : savedThreads[0].id
+      );
     }
   };
 
@@ -76,6 +83,7 @@ const CustomerSupportPage = () => {
         id: response.data.threadId,
         name: `Thread ${threads.length + 1}`,
         messages: [],
+        ended: false,
       };
       const updatedThreads = [newThread, ...threads];
       setThreads(updatedThreads);
@@ -93,13 +101,67 @@ const CustomerSupportPage = () => {
     saveThreadsToLocalStorage(updatedThreads);
 
     if (currentThreadId === threadId) {
-      setCurrentThreadId(updatedThreads[0]?.id || null);
-      setMessages(updatedThreads[0]?.messages || []);
+      const nextActiveThread = updatedThreads.find((thread) => !thread.ended);
+      setCurrentThreadId(nextActiveThread ? nextActiveThread.id : null);
+      setMessages(nextActiveThread ? nextActiveThread.messages : []);
+    }
+
+    setEndedThreads(endedThreads.filter((id) => id !== threadId));
+  };
+
+  const endSupport = async () => {
+    if (!currentThreadId) return;
+
+    try {
+      setIsLoading(true);
+
+      // Send the thread for sentiment analysis
+      await api.post("/ai/analyze-sentiment", {
+        thread: {
+          id: currentThreadId,
+          name:
+            threads.find((t) => t.id === currentThreadId)?.name ||
+            "Ended Thread",
+          messages: messages,
+        },
+      });
+
+      // Update local state
+      setEndedThreads([...endedThreads, currentThreadId]);
+
+      // Update threads in localStorage
+      const updatedThreads = threads.map((thread) =>
+        thread.id === currentThreadId ? { ...thread, ended: true } : thread
+      );
+      setThreads(updatedThreads);
+      saveThreadsToLocalStorage(updatedThreads);
+
+      // If the current thread is ended, switch to the first available active thread
+      const nextActiveThread = updatedThreads.find((t) => !t.ended);
+      if (nextActiveThread) {
+        setCurrentThreadId(nextActiveThread.id);
+        setMessages(nextActiveThread.messages || []);
+      } else {
+        setCurrentThreadId(null);
+        setMessages([]);
+      }
+    } catch (error) {
+      console.error("Error ending support:", error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
+  const isThreadEnded = (threadId) => endedThreads.includes(threadId);
+
   const handleSendMessage = async () => {
-    if (inputMessage.trim() === "" || !currentThreadId || isLoading) return;
+    if (
+      inputMessage.trim() === "" ||
+      !currentThreadId ||
+      isLoading ||
+      isThreadEnded(currentThreadId)
+    )
+      return;
 
     const newMessage = { text: inputMessage, sender: "user" };
     const updatedMessages = [...messages, newMessage];
@@ -178,10 +240,11 @@ const CustomerSupportPage = () => {
                     currentThreadId === thread.id
                       ? "bg-blue-100 text-blue-800"
                       : "hover:bg-gray-100"
-                  }`}
+                  } ${thread.ended ? "opacity-50" : ""}`}
                 >
                   {(thread.messages[0] && thread.messages[0].text) ||
                     thread.name}
+                  {thread.ended && " (Ended)"}
                 </button>
                 <button
                   onClick={() => deleteThread(thread.id)}
@@ -199,7 +262,18 @@ const CustomerSupportPage = () => {
           className="flex-grow bg-white rounded-lg shadow-md p-6 flex flex-col"
           style={{ maxWidth: "calc(100% - 16rem)" }}
         >
-          <h1 className="text-3xl font-bold mb-6">Customer Support</h1>
+          <div className="flex justify-between items-center mb-6">
+            <h1 className="text-3xl font-bold">Customer Support</h1>
+            {currentThreadId && !isThreadEnded(currentThreadId) && (
+              <button
+                onClick={endSupport}
+                className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 transition-colors"
+                disabled={isLoading}
+              >
+                Finalizar atendimento
+              </button>
+            )}
+          </div>
           <div
             className="flex-grow overflow-y-auto mb-4 space-y-4"
             style={{ maxHeight: "calc(100vh - 300px)" }}
@@ -235,15 +309,23 @@ const CustomerSupportPage = () => {
               value={inputMessage}
               onChange={(e) => setInputMessage(e.target.value)}
               onKeyPress={handleKeyPress}
-              placeholder="Type your message here..."
+              placeholder={
+                isThreadEnded(currentThreadId)
+                  ? "This conversation has ended"
+                  : "Type your message here..."
+              }
               className="flex-grow border border-gray-300 rounded-l-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-600"
-              disabled={isLoading || !currentThreadId}
+              disabled={
+                isLoading || !currentThreadId || isThreadEnded(currentThreadId)
+              }
               ref={inputRef}
             />
             <button
               onClick={handleSendMessage}
               className="bg-blue-600 text-white px-4 py-2 rounded-r-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400"
-              disabled={isLoading || !currentThreadId}
+              disabled={
+                isLoading || !currentThreadId || isThreadEnded(currentThreadId)
+              }
             >
               {isLoading ? (
                 <div className="w-6 h-6 border-t-2 border-white border-solid rounded-full animate-spin"></div>

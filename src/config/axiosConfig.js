@@ -1,13 +1,14 @@
 // src/utils/axiosConfig.js
-import axios from 'axios';
+
+import axios from "axios";
 
 const instance = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api', // Use environment variable or fallback
+  baseURL: import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api", // Adjust this URL as needed
   timeout: 50000, // Request timeout in milliseconds
   headers: {
-    'Content-Type': 'application/json',
-    'Accept': 'application/json'
-  }
+    "Content-Type": "application/json",
+    Accept: "application/json",
+  },
 });
 
 // Add a request interceptor
