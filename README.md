@@ -35,3 +35,6 @@ CloudMart is a scalable and AI-powered cloud infrastructure designed to enhance 
 
 ___
 CloudMart redefines e-commerce scalability, automation, and AI-driven intelligence. Feel free to contribute, raise issues, and explore the future of cloud-powered retail! 🚀
+
+## 🎬 Demo Video Link
+https://youtu.be/T7MvxrCRNVQ
