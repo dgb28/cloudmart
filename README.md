@@ -33,5 +33,5 @@ CloudMart is a scalable and AI-powered cloud infrastructure designed to enhance 
 - **AWS Lambda**: Event-driven architecture for processing transactions and triggering workflows.
 - **Google Cloud BigQuery**: Real-time analytics and reporting of key business metrics for smarter decision-making.
 
----
+--
 CloudMart redefines e-commerce scalability, automation, and AI-driven intelligence. Feel free to contribute, raise issues, and explore the future of cloud-powered retail! 🚀
